@@ -13,6 +13,127 @@ import (
 
 var alleLengten zaaglengten
 
+func main() {
+	var run bool = true
+	for run {
+
+		if len(alleLengten.lengten) != 0 {
+			fmt.Printf("\nOpgeslagen zaaglengtes:")
+			for i := 0; i < len(alleLengten.lengten); i++ {
+				fmt.Printf(" %d", alleLengten.lengten[i].Lengte)
+			}
+			fmt.Printf("\n\n")
+		}
+
+		maat := scan()
+		switch maat {
+		case 600:
+			continue
+		case 400:
+			run = false
+			continue
+		case 500:
+			assignLengten()
+			fmt.Printf("Verdeling voor optimalisatie:\n\n")
+			printCombinaties()
+
+			// grove toewijzing is nu gedaan, nu kunnen we kijken of er nog efficiëntiewinst te halen is
+			returnValue := hercombineerLatten()
+			_ = returnValue
+			fmt.Printf("\nVerdeling na optimalisatie:\n\n")
+			printCombinaties()
+
+			// programma variabelen terug naar beginwaarden zetten
+			alleLengten.lengten = nil
+			latten = nil
+			UniekId = 0
+			continue
+		default:
+			l := zaaglengte{maat, -1}
+			alleLengten.AddLengte(l)
+		}
+	}
+}
+
+func scan() int {
+	var return_var int
+
+	//scanner aanmaken
+	scanner := bufio.NewScanner(os.Stdin)
+
+	//vraag, scan en print getal
+	var end_loop bool = false
+	for !end_loop {
+		fmt.Printf("--- h voor help ---\n")
+		scanner.Scan()
+		input := scanner.Text()
+		switch input {
+		case "h":
+			fmt.Printf("--- -----------------------------------------------------------------------------+\n")
+			fmt.Printf("--- \n")
+			fmt.Printf("--- Geef een maat in cm tussen 0 en 300 en druk op enter \n")
+			fmt.Printf("--- \n")
+			fmt.Printf("--- 'w'		- voor willekeurige maten. \n")
+			fmt.Printf("--- 'a'		- voor de invoer van een volledige array van maten \n")
+			fmt.Printf("--- 'Enter'	- voor bepaling optimaal zaagplan \n")
+			fmt.Printf("--- \n")
+			fmt.Printf("--- 'q' 	- voor exit \n")
+			fmt.Printf("--- \n")
+			fmt.Printf("--- -----------------------------------------------------------------------------+\n\n")
+			return_var = 600
+			end_loop = true
+		case "w":
+			fmt.Printf("Aantal willikeurige nummers dat toegevoegd moet worden: ")
+			scanner.Scan()
+			input := scanner.Text()
+
+			aantal, err := strconv.Atoi(input)
+			if err != nil {
+				fmt.Println("fout: ongeldige invoer")
+			} else {
+				alleLengten.fillRandom(aantal)
+				return_var = 600
+				end_loop = true
+			}
+		case "a":
+			fmt.Printf("Array die ingevoerd moet worden: ")
+			scanner.Scan()
+			input := scanner.Text()
+			waarden := strings.Split(input, " ")
+
+			for _, v := range waarden {
+				w, err := strconv.Atoi(v)
+				if err != nil {
+					fmt.Println(err)
+				} else {
+					lengte := zaaglengte{w, -1}
+					alleLengten.AddLengte(lengte)
+					return_var = 600
+					end_loop = true
+				}
+			}
+		case "q":
+			return_var = 400
+			end_loop = true
+		case "":
+			return_var = 500
+			end_loop = true
+		default:
+			number, err := strconv.Atoi(input)
+			if err != nil {
+				fmt.Println("fout: ongeldige invoer")
+			} else if number == 0 || number >= 301 {
+				fmt.Println("fout: ongeldige maat")
+			} else {
+				return_var = number
+				end_loop = true
+			}
+		}
+	}
+
+	return return_var
+}
+
 func koppelLengteEnLat(latId, lengteId int) {
 	for i, _ := range latten {
 		if latten[i].UniekLatId == latId {
@@ -207,73 +328,6 @@ func hercombineerLatten() bool {
 	}
 }
 
-func scan() int {
-	var return_var int
-
-	//scanner aanmaken
-	scanner := bufio.NewScanner(os.Stdin)
-
-	//vraag, scan en print getal
-	var end_loop bool = false
-	for !end_loop {
-		fmt.Printf("--- 'w' voor willekeurige maten. 'q' voor exit. 'Enter' voor de optimale zaagmanier --- \n")
-		fmt.Printf("--- 'a' voor de invoer van een volledige array van maten --- \n")
-		fmt.Printf("--- Geef een maat in cm tussen 0 en 300 om aan opgeslagen maten te toevoegen --- \n\n  ")
-		scanner.Scan()
-		input := scanner.Text()
-		switch input {
-		case "w":
-			fmt.Printf("  Aantal willikeurige nummers dat toegevoegd moet worden: ")
-			scanner.Scan()
-			input := scanner.Text()
-
-			aantal, err := strconv.Atoi(input)
-			if err != nil {
-				fmt.Println("fout: ongeldige invoer")
-			} else {
-				alleLengten.fillRandom(aantal)
-				return_var = 600
-				end_loop = true
-			}
-		case "a":
-			fmt.Printf("  Array die ingevoerd moet worden: ")
-			scanner.Scan()
-			input := scanner.Text()
-			waarden := strings.Split(input, " ")
-
-			for _, v := range waarden {
-				w, err := strconv.Atoi(v)
-				if err != nil {
-					fmt.Println(err)
-				} else {
-					lengte := zaaglengte{w, -1}
-					alleLengten.AddLengte(lengte)
-					return_var = 600
-					end_loop = true
-				}
-			}
-		case "q":
-			return_var = 400
-			end_loop = true
-		case "":
-			return_var = 500
-			end_loop = true
-		default:
-			number, err := strconv.Atoi(input)
-			if err != nil {
-				fmt.Println("fout: ongeldige invoer")
-			} else if number == 0 || number >= 301 {
-				fmt.Println("fout: ongeldige maat")
-			} else {
-				return_var = number
-				end_loop = true
-			}
-		}
-	}
-
-	return return_var
-}
-
 func printCombinaties() {
 	var rest int
 	fmt.Printf("In totaal moeten er %d latten gezaagd worden. \n", len(latten))
@@ -289,43 +343,4 @@ func printCombinaties() {
 	}
 
 	fmt.Printf("Totale restproducten zijn %d cm lang. \n\n", rest)
-}
-
-func main() {
-	var run bool = true
-	for run {
-
-		if len(alleLengten.lengten) != 0 {
-			fmt.Printf("\nOpgeslagen zaaglengtes:")
-			for i := 0; i < len(alleLengten.lengten); i++ {
-				fmt.Printf(" %d", alleLengten.lengten[i].Lengte)
-			}
-			fmt.Printf("\n\n")
-		}
-
-		maat := scan()
-		switch maat {
-		case 600:
-			continue
-		case 400:
-			run = false
-			continue
-		case 500:
-			assignLengten()
-			fmt.Printf("Verdeling voor optimalisatie:\n\n")
-			printCombinaties()
-
-			// grove toewijzing is nu gedaan, nu kunnen we kijken of er nog efficiëntiewinst te halen is
-			returnValue := hercombineerLatten()
-			_ = returnValue
-			fmt.Printf("\nVerdeling na optimalisatie:\n\n")
-			printCombinaties()
-
-			run = false
-			continue
-		default:
-			l := zaaglengte{maat, -1}
-			alleLengten.AddLengte(l)
-		}
-	}
 }
