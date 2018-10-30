@@ -11,6 +11,7 @@ import (
 	"github.com/gonum/stat/combin"
 )
 
+const reoptimise = 17 //Hoevaak we het optimalisatiealgoritme toestaan om naar een betere zaagverdeling te zoeken
 var alleLengten zaaglengten
 
 func main() {
@@ -34,14 +35,16 @@ func main() {
 			continue
 		case 500:
 			assignLengten()
-			fmt.Printf("Verdeling voor optimalisatie:\n\n")
+			fmt.Printf("Eerste verdeling:\n\n")
 			printCombinaties()
 
 			// grove toewijzing is nu gedaan, nu kunnen we kijken of er nog efficiëntiewinst te halen is
 			returnValue := hercombineerLatten()
-			_ = returnValue
-			fmt.Printf("\nVerdeling na optimalisatie:\n\n")
-			printCombinaties()
+			opt := returnValue
+			if opt {
+				fmt.Printf("\nVerdeling na optimalisatie:\n\n")
+				printCombinaties()
+			}
 
 			// programma variabelen terug naar beginwaarden zetten
 			alleLengten.lengten = nil
@@ -173,19 +176,21 @@ func hercombineerLatten() bool {
 		rest += latten[latId].Restant
 	}
 
-	// Als de totale restlengte groter is dan 300 cm dan is er mogelijk een efficiëntere combinatie mogelijk.
+	/* Als de totale restlengte groter is dan 300 cm dan is er mogelijk een efficiëntere combinatie mogelijk.
 
 	// Als de laatste lat echter groter dan een halve lat is, valt er niets te winnen omdat alle aanwezige latten
 	// sowieso gezaagd moeten worden omdat elke een zaaglengte van meer dan 150cm bevat)
 
 	//	laatseLat := numLatten - 1
-	//	LaatsteLat := alleLengten.ReturnByLatId(laatseLat)
+	//	LaatsteLat := alleLengten.ReturnByLatId(laatseLat) */
 
-	if rest > 300 { // zoeken naar optimalisatie heeft alleen zin als de restlengten samen groter dan 1 lat zijn
+	if rest >= 300 { // zoeken naar optimalisatie heeft alleen zin als de restlengten samen groter dan 1 lat zijn
 		// optimalisatie van restlengten
-		for latId := 0; latId < len(latten); latId++ {
-			// optimalisatie heeft alleen zin als het restant van de lat groter dan 0 is
-			if latten[latId].Restant != 0 {
+		for x := 0; x < reoptimise && rest >= 300; x++ {
+			for latId := 0; latId < len(latten); latId++ {
+				// optimalisatie heeft alleen zin als het restant van de lat groter dan 0 is
+				//if latten[latId].Restant != 0 {
+				var gewisseld []wissel
 				wisselGevonden := true
 				for wisselGevonden {
 					/* 	verzameling
@@ -199,7 +204,7 @@ func hercombineerLatten() bool {
 
 					for i, _ := range Lengten.Zaaglengten {
 						elements := i + 1
-						if numLengten > 2 && elements != numLengten {
+						if numLengten > 1 && elements != numLengten {
 							combGen := combin.NewCombinationGenerator(numLengten, elements)
 							for combGen.Next() != false {
 								comb := combGen.Combination(nil)
@@ -225,10 +230,10 @@ func hercombineerLatten() bool {
 					// extra zaaglengte in past */
 
 					if len(verzameling) != 0 { // er zijn verzamelingen die gewisselt kunnen worden
-						//fmt.Printf("lat %d: ", latId+1)
+						/*fmt.Printf("lat %d: ", latId+1)
 						//fmt.Println(verzameling)
 
-						// eerst kijken welke wissels tussen combinaties van lengten uitgevoerd kunnen worden die grotere restlengtes opleveren
+						// eerst kijken welke wissels tussen combinaties van lengten uitgevoerd kunnen worden die grotere restlengtes opleveren*/
 						var wissels []wissel
 						for c, v := range verzameling {
 							totaalLengte1 := 0
@@ -242,10 +247,10 @@ func hercombineerLatten() bool {
 									totaalLengte2 := w.Lengte
 									restLengte2 := getLatByUniekLatId(w.LatId).Restant
 									//evalLengte := w.Lengte+latRest
-									if totaalLengte1 > totaalLengte2 && totaalLengte1 <= totaalLengte2+restLengte2 {
+									if totaalLengte1 >= totaalLengte2 && totaalLengte1 <= totaalLengte2+restLengte2 {
 										nieuweRest1 := totaalLengte2 + restLengte2 - totaalLengte1
 										nieuweRest2 := totaalLengte1 + restLengte1 - totaalLengte2
-										if (nieuweRest1 > restLengte1 && nieuweRest1 > restLengte2) || (nieuweRest2 > restLengte1 && nieuweRest2 > restLengte2) {
+										if ((nieuweRest1 >= restLengte1 && nieuweRest1 >= restLengte2) || (nieuweRest2 >= restLengte1 && nieuweRest2 >= restLengte2)) && len(v.Zaaglengten) > 1 {
 											// er is optimalisatiewinst mogelijk
 											var grootsteRest int
 											if nieuweRest1 > nieuweRest2 {
@@ -260,11 +265,23 @@ func hercombineerLatten() bool {
 							}
 						}
 
+						// voorkomen dat er in herhaling word gewisseld
+						for _, gew := range gewisseld {
+							for wI, w := range wissels {
+								if w == gew {
+									wissels = append(wissels[:wI], wissels[wI+1:]...)
+								}
+							}
+						}
+
 						// Nu kunnen we de meest efficiente wissel voor deze lat uitvoeren
 						if len(wissels) != 0 {
+
 							var besteWissel wissel
 							sort.SliceStable(wissels, func(k, l int) bool { return wissels[k].grootsteRest > wissels[l].grootsteRest })
-							besteWissel = wissels[0] // deze wissel creërt de grootste restlengte
+							besteWissel = wissels[0] // deze wissel creërt de grootste restLengte1
+							//fmt.Println(latId)
+							//fmt.Println(besteWissel)
 
 							// wisselen
 							wisselLatId1 := alleLengten.lengten[besteWissel.lengteId].LatId
@@ -283,46 +300,58 @@ func hercombineerLatten() bool {
 									latten[p].Herzaag()
 								}
 							}
+							gewisseld = append(gewisseld, besteWissel)
 						} else { // Er zijn geen nuttige wissel meer mogelijk, de loop voor zoektocht naar efficientie verbreken
 							wisselGevonden = false
 						}
+
+						// kijken of ontstane restlengten een extra zaaglengte kunnen verweken en lege latten uit de distributie van latten halen
+						m := len(alleLengten.lengten)
+						for lengteId := m - 1; lengteId >= 0; lengteId-- { // voor elke ingevoerde zaaglengte, van klein naar groot
+							n := len(latten)
+
+							sort.SliceStable(latten, func(k, l int) bool { return latten[k].Restant < latten[l].Restant }) // sorteren van de latten op restlengte
+							for latId := 0; latId < n; latId++ {                                                           // voor elke bestaande lat
+								if latten[latId].Restant == 300 { // als deze lat nu niet meer nodig is
+									latten = append(latten[:latId], latten[latId+1:]...)
+									continue
+								} else if latten[latId].UniekLatId == alleLengten.lengten[lengteId].LatId { // als deze lengte in deze lat zit
+									continue
+								} else if latten[latId].Restant >= alleLengten.lengten[lengteId].Lengte && alleLengten.lengten[lengteId].LatId == latten[n-1].UniekLatId { // als de zaaglengte in het restant van deze lat past
+									//fmt.Printf("LengteId: %d, Lengte: %d \nLat.Restant: %d, ")
+									oudLatId := alleLengten.lengten[lengteId].LatId
+									koppelLengteEnLat(latten[latId].UniekLatId, lengteId)
+									for x, _ := range latten {
+										if latten[x].UniekLatId == oudLatId {
+											latten[x].Herzaag()
+										}
+									}
+									break
+								} else if latId == n-1 { // als dit de laatste lat is en de zaaglengte past er niet meer in
+									break
+								}
+							}
+						}
+						numLatten = len(latten)
+						for latId := 0; latId < numLatten; latId++ {
+							rest += latten[latId].Restant
+						}
+
+						if rest <= 300 {
+							wisselGevonden = false
+						}
+						//printCombinaties()
 					} else {
 						wisselGevonden = false
 					}
 				}
 			}
+			//}
 		}
 
 		//printCombinaties()
-
-		// lege latten uit de distributie van latten halen
-		m := len(alleLengten.lengten)
-		for lengteId := m - 1; lengteId >= 0; lengteId-- { // voor elke ingevoerde zaaglengte, van klein naar groot
-			n := len(latten)
-
-			sort.SliceStable(latten, func(k, l int) bool { return latten[k].Restant < latten[l].Restant }) // sorteren van de latten op restlengte
-			for latId := 0; latId < n; latId++ {                                                           // voor elke bestaande lat
-				if latten[latId].Restant == 300 { // als deze lat nu niet meer nodig is
-					latten = append(latten[:latId], latten[latId+1:]...)
-					continue
-				} else if latten[latId].UniekLatId == alleLengten.lengten[lengteId].LatId { // als deze lengte in deze lat zit
-					continue
-				} else if latten[latId].Restant >= alleLengten.lengten[lengteId].Lengte && alleLengten.lengten[lengteId].LatId == latten[n-1].UniekLatId { // als de zaaglengte in het restant van deze lat past
-					//fmt.Printf("LengteId: %d, Lengte: %d \nLat.Restant: %d, ")
-					oudLatId := alleLengten.lengten[lengteId].LatId
-					koppelLengteEnLat(latten[latId].UniekLatId, lengteId)
-					for x, _ := range latten {
-						if latten[x].UniekLatId == oudLatId {
-							latten[x].Herzaag()
-						}
-					}
-					break
-				} else if latId == n-1 { // als dit de laatste lat is en de zaaglengte past er niet meer in
-					break
-				}
-			}
-		}
 		return true
+
 	} else {
 		return false
 	}
